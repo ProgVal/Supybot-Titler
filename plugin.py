@@ -475,7 +475,7 @@ class Titler(callbacks.Plugin):
                 title = self._fetchtitle(url, gd=False)
         else:  # we don't have a specific method so resort to generic title fetcher.
             title = self._fetchtitle(url, gd=gd, di=di)
-        if sys.version_info.major >= 3:
+        if sys.version_info.major >= 3 and isinstance(title, bytes):
             title = title.decode()
         # now return the title.
         return title

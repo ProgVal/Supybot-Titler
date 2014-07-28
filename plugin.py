@@ -1,12 +1,37 @@
 # -*- coding: utf-8 -*-
 ###
 # Copyright (c) 2013, spline
+# Copyright (c) 2014, Valentin Lorentz
 # All rights reserved.
 #
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
+#   * Redistributions of source code must retain the above copyright notice,
+#     this list of conditions, and the following disclaimer.
+#   * Redistributions in binary form must reproduce the above copyright notice,
+#     this list of conditions, and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#   * Neither the name of the author of this software nor the name of
+#     contributors to this software may be used to endorse or promote products
+#     derived from this software without specific prior written consent.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 ###
 
 # my libs.
+import sys
 import re  # regex for matching urls.
 import json  # json for APIs.
 import requests  # http stuff.
@@ -15,8 +40,12 @@ import sqlite3 as sqlite  # linkdb.
 import os  # linkdb
 import magic  # python-magic
 from bs4 import BeautifulSoup  # bs4
-from urlparse import urlparse, parse_qs, urlsplit, urlunsplit, urlunparse
-from cStringIO import StringIO  # images.
+if sys.version_info.major >= 3:
+    from urllib.parse import urlparse, parse_qs, urlsplit, urlunsplit, urlunparse
+    from io import StringIO  # images.
+else:
+    from urlparse import urlparse, parse_qs, urlsplit, urlunsplit, urlunparse
+    from cStringIO import StringIO  # images.
 # extra supybot libs
 import supybot.ircmsgs as ircmsgs
 import supybot.conf as conf
@@ -43,7 +72,7 @@ class LinkDB:
             try:
                 F = open(LINKDB, "w")
                 F.close()
-            except IOError, ioe:
+            except IOError as ioe:
                 callbacks.Plugin.log.debug("IOError in DB creation")
         else:
             return
@@ -191,7 +220,7 @@ class Titler(callbacks.Plugin):
                 return response.text
             else:
                 return response
-        except Exception, e:
+        except Exception as e:
             self.log.info('_openurl: ERROR: Cannot open: {0} ERROR: {1} '.format(url, e))
             return None
 
@@ -304,7 +333,8 @@ class Titler(callbacks.Plugin):
         """Convert an IRI to a URI. Note that IRIs must be
         passed in a unicode strings. That is, do not utf-8 encode
         the IRI before passing it into the function."""
-        if isinstance(uri ,unicode):
+        if (sys.version_info.major >= 3 and isinstance(uri, str)) or \
+                (sys.version_info.major < 3 and isinstance(uri, unicode)):
             (scheme, authority, path, query, fragment) = urlsplit(uri)
             authority = authority.encode('idna')
             # For each character in 'ucschar' or 'iprivate'
@@ -360,7 +390,7 @@ class Titler(callbacks.Plugin):
                 self.longUrlCacheTime = time.time()
                 self.longUrlServices = domains
                 return domains
-            except Exception, e:
+            except Exception as e:
                 self.log.error("longurlservices: ERROR processing JSON in longurl services: {0}".format(e))
                 return None
 
@@ -376,7 +406,7 @@ class Titler(callbacks.Plugin):
         try:
             lookup = json.loads(lookup)
             return lookup['long-url']
-        except Exception, e:
+        except Exception as e:
             self.log.error("_longurl: json processing error: {0}".format(e))
             return None
 
@@ -409,7 +439,7 @@ class Titler(callbacks.Plugin):
                     return url
             else:  # try and get the shortened link.
                 return data['data']['url']
-        except Exception, e:
+        except Exception as e:
             self.log.error("_shortenurl: error parsing JSON: {0}".format(e))
             return None
 
@@ -492,7 +522,7 @@ class Titler(callbacks.Plugin):
             # now we need cStringIO.
             try:  # try/except because images can be corrupt.
                 im = Image.open(StringIO(content.content))
-            except Exception, e:
+            except Exception as e:
                 self.log.error("_fetchtitle: ERROR: {0} is an invalid image I cannot read :: {1}".format(url, e))
                 return None
             imgformat = im.format
@@ -541,7 +571,7 @@ class Titler(callbacks.Plugin):
                 else:  # don't want description, just title.
                     return title.encode('utf-8', 'ignore')
                 # now take the the possible 'title and 'gd' above and return.
-            except Exception, e:
+            except Exception as e:
                 self.log.error("_fetchtitle: ERROR: Could not parse title of: {0} - {1}".format(url, e))
                 return None
         # handle any other filetype using libmagic.
@@ -549,7 +579,7 @@ class Titler(callbacks.Plugin):
             try:  # we could also incorporate some type of metadata attempt via exif here.
                 typeoffile = magic.from_buffer(content.content)
                 return "Content type: {0} - Size: {1}".format(typeoffile, self._sizefmt(contentdict['size']))
-            except Exception, e:  # give a detailed error here in the logs.
+            except Exception as e:  # give a detailed error here in the logs.
                 self.log.error("ERROR: _fetchtitle: error trying to parse {0} via other (else) :: {1}".format(url, e))
                 self.log.error("ERROR: _fetchtitle: no handler for {0} at {1}".format(contentdict['type'], url))
                 return None
@@ -681,7 +711,7 @@ class Titler(callbacks.Plugin):
             #for url in matches:
                 self.log.info("FOUND URL: {0}".format(url))
                 url = url.decode('utf-8')
-                url = unicode(url)
+                url = str(url)
                 url = self.iri2uri(url)
                 self.log.info("after iri to uri: {0}".format(url))
                 # url = self._tidyurl(url)  # should we tidy them?
@@ -713,7 +743,7 @@ class Titler(callbacks.Plugin):
 
         # clean up opturl
         opturl = opturl.decode('utf-8')
-        opturl = unicode(opturl)
+        opturl = str(opturl)
         opturl = self.iri2uri(opturl)
 
         # main.
@@ -782,7 +812,7 @@ class Titler(callbacks.Plugin):
                     created = data['data']['created_utc']
                     o = "subreddit: {0} - {1} - subscribers: {2} - created: {3}".format(title, desc, subs, created)
                     return o
-                except Exception, e:  # something broke.
+                except Exception as e:  # something broke.
                     self.log.error("_reddit: could not process JSON from API URL: {0} :: {1}".format(apiurl, e))
                     return None
             elif len(pathnamesplit) == 5:  # direct comment to.
@@ -803,7 +833,7 @@ class Titler(callbacks.Plugin):
                     created = data[0]['data']['children'][0]['data']['created_utc']
                     o = "subreddit: {0} - {1} - comments: {2} - score: {3} - created: {4}".format(subreddit, title, comments, score, created)
                     return o
-                except Exception, e:  # something broke.
+                except Exception as e:  # something broke.
                     self.log.error("_reddit: could not process JSON from API URL: {0} :: {1}".format(apiurl, e))
                     return None
             else:  # can't determine.
@@ -826,7 +856,7 @@ class Titler(callbacks.Plugin):
                 # is_mod = data['data']['is_mod']
                 o = "reddit user: {0} KARMA: link {1}/comment {2} signed up: {3}".format(username, linkkarma, commentkarma, created)
                 return o
-            except Exception, e:  # something broke.
+            except Exception as e:  # something broke.
                 self.log.error("_reddit: could not process JSON from API URL: {0} :: {1}".format(apiurl, e))
                 return None
         else:  # we don't have a condition for this url. return None.
@@ -884,7 +914,7 @@ class Titler(callbacks.Plugin):
             posted = desc = data['Post']['datestamp']
             o = "{0} Desc: {1} Size: {2}x{3} Posted: {4}".format(title, desc, width, height, posted)
             return o
-        except Exception, e:
+        except Exception as e:
             self.log.error("_bliptitle: ERROR processing JSON: {0}".format(e))
             return None
 
@@ -926,7 +956,7 @@ class Titler(callbacks.Plugin):
             rating = data['rating']
             o = "DailyMotion Video: {0} Duration: {1} Explicit: {2} Lang: {3} Rating: {4}/5 Desc: {5}".format(title, dur, explicit, lang, rating, desc)
             return o
-        except Exception, e:
+        except Exception as e:
             self.log.error("_dmtitle: ERROR processing JSON: {0}".format(e))
             return None
 
@@ -958,7 +988,7 @@ class Titler(callbacks.Plugin):
         try:
             data = json.loads(lookup)
             return "Vimeo Video: {0} Size: {1}x{2} Duration: {3}".format(data['title'], data['width'], data['height'],("%dm%ds"%divmod(data['duration'],60)))
-        except Exception, e:
+        except Exception as e:
             self.log.error("_vimeotitle: ERROR parsing JSON: {0}".format(e))
             return None
 
@@ -1014,7 +1044,7 @@ class Titler(callbacks.Plugin):
                 o = "{0} - {1}".format(o, self._bu("ALBUM"))
             # finally, return our string.
             return o
-        except Exception, e:
+        except Exception as e:
             self.log.error("_imgur: ERROR processing JSON: {0}".format(e))
             return None
 
@@ -1065,7 +1095,7 @@ class Titler(callbacks.Plugin):
             files = [k + " (" + self._sizefmt(v['size']) + ")"  for (k, v) in data['files'].items()]
             o = "DESC: {0} COMMENTS: {1} POSTED: {2} FILES({3}): {4}".format(desc, comments, created, len(files), " | ".join(files))
             return o
-        except Exception, e:
+        except Exception as e:
             self.log.error("_gist: ERROR processing JSON: {0}".format(e))
             return None
 
@@ -1123,7 +1153,7 @@ class Titler(callbacks.Plugin):
             ytlogo = "{0}{1}".format(self._bold(ircutils.mircColor("You", fg='red', bg='white')), self._bold(ircutils.mircColor("Tube", fg='white', bg='red')))
             o = "{0} Video: {1} Category: {2} Duration: {3} Views: {4} Rating: {5}".format(ytlogo, title, category, duration, viewCount, rating)
             return o
-        except Exception, e:
+        except Exception as e:
             self.log.error("_yttitle: error processing JSON: {0}".format(e))
             return None
 

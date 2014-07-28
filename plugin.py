@@ -727,8 +727,9 @@ class Titler(callbacks.Plugin):
             for url in utils.web.urlRe.findall(text):
             #for url in matches:
                 self.log.info("FOUND URL: {0}".format(url))
-                url = url.decode('utf-8')
-                url = str(url)
+                if sys.version_info.major < 3:
+                    url = url.decode('utf-8')
+                    url = str(url)
                 url = self.iri2uri(url)
                 self.log.info("after iri to uri: {0}".format(url))
                 # url = self._tidyurl(url)  # should we tidy them?

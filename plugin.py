@@ -91,13 +91,25 @@ class LinkDB:
             cur.executescript(query)
             cur.commit()
 
-    def __safe_unicode(self, s):
-        """Return the unicode representation of obj"""
+    if sys.version_info.major >= 3:
+        def __safe_unicode(self, s):
+            if isinstance(s, bytes):
+                # TODO: use charade to detect charset
+                try:
+                    return s.decode()
+                except UnicodeDecodeError:
+                    return s.deocde('iso8859-1')
+            else:
+                return s
+    else:
+        def __safe_unicode(self, s):
+            """Return the unicode representation of obj"""
 
-        try:
-            return s.decode("utf-8").encode("utf-8")
-        except UnicodeDecodeError:
-            return s.decode("iso8859-1").encode("utf-8")
+            # TODO: use charade to detect charset
+            try:
+                return s.decode("utf-8").encode("utf-8")
+            except UnicodeDecodeError:
+                return s.decode("iso8859-1").encode("utf-8")
 
     def add(self, url, title, channel, user):
         """Insert a link into the DB."""
@@ -337,6 +349,8 @@ class Titler(callbacks.Plugin):
                 (sys.version_info.major < 3 and isinstance(uri, unicode)):
             (scheme, authority, path, query, fragment) = urlsplit(uri)
             authority = authority.encode('idna')
+            if sys.version_info.major >= 3:
+                authority = authority.decode()
             # For each character in 'ucschar' or 'iprivate'
             #  1. encode as utf-8
             #  2. then %-encode each octet of that utf-8
@@ -461,6 +475,8 @@ class Titler(callbacks.Plugin):
                 title = self._fetchtitle(url, gd=False)
         else:  # we don't have a specific method so resort to generic title fetcher.
             title = self._fetchtitle(url, gd=gd, di=di)
+        if sys.version_info.major >= 3:
+            title = title.decode()
         # now return the title.
         return title
 
@@ -742,8 +758,9 @@ class Titler(callbacks.Plugin):
         channel = msg.args[0]
 
         # clean up opturl
-        opturl = opturl.decode('utf-8')
-        opturl = str(opturl)
+        if sys.version_info.major < 3:
+            opturl = opturl.decode('utf-8')
+            opturl = str(opturl)
         opturl = self.iri2uri(opturl)
 
         # main.

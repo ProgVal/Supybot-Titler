@@ -337,7 +337,8 @@ class Titler(callbacks.Plugin):
             if i < low:
                 break
             if i >= low and i <= high:
-                retval = "".join(["%%%2X" % ord(o) for o in c.encode('utf-8')])
+                pred = ord if sys.version_info.major < 3 else lambda x:x
+                retval = "".join(["%%%2X" % pred(o) for o in c.encode('utf-8')])
                 break
         return retval
 
